@@ -146,16 +146,25 @@ bool AOELootServer::CanPacketReceive(WorldSession* session, WorldPacket const& p
         // Collect regular items
         for (size_t i = 0; i < loot->items.size(); ++i)
         {
+            if (loot->items[i].is_looted || loot->items[i].is_blocked)
+                continue;
+
             // Check if there's still space
             if ((mainLoot->items.size() + itemsToAdd.size() + mainLoot->quest_items.size() + questItemsToAdd.size()) >= MAX_LOOT_ITEMS)
                 break;
 
             itemsToAdd.push_back(loot->items[i]);
+            loot->items[i].is_looted = true;
+            if (loot->unlootedCount > 0)
+                loot->unlootedCount--;
         }
 
         // Collect quest items (only for active quests, limited to needed count)
         for (size_t i = 0; i < loot->quest_items.size(); ++i)
         {
+            if (loot->quest_items[i].is_looted || loot->quest_items[i].is_blocked)
+                continue;
+
             // Check if there's still space
             if ((mainLoot->items.size() + itemsToAdd.size() + mainLoot->quest_items.size() + questItemsToAdd.size()) >= MAX_LOOT_ITEMS)
                 break;
@@ -210,12 +219,18 @@ bool AOELootServer::CanPacketReceive(WorldSession* session, WorldPacket const& p
             cappedItem.count = std::min(static_cast<uint32>(questItem.count), stillNeeded);
 
             questItemsToAdd.push_back(cappedItem);
+            loot->quest_items[i].is_looted = true;
         }
 
-        // Clear source loot (but don't modify vector directly)
-        loot->clear();
-        creature->AllLootRemovedFromCorpse();
-        creature->RemoveDynamicFlag(UNIT_DYNFLAG_LOOTABLE);
+        // Clear gold
+        loot->gold = 0;
+
+        // Clear source loot only if everything was taken
+        if (loot->isLooted())
+        {
+            creature->AllLootRemovedFromCorpse();
+            creature->RemoveDynamicFlag(UNIT_DYNFLAG_LOOTABLE);
+        }
 
         processedCorpses++;
     }
