@@ -155,8 +155,13 @@ bool AOELootServer::CanPacketReceive(WorldSession* session, WorldPacket const& p
 
             itemsToAdd.push_back(loot->items[i]);
             loot->items[i].is_looted = true;
-            if (loot->unlootedCount > 0)
-                loot->unlootedCount--;
+
+            bool countedAtCreation = !loot->items[i].needs_quest && loot->items[i].conditions.empty() && !loot->items[i].freeforall;
+            if (countedAtCreation || loot->items[i].is_counted)
+            {
+                if (loot->unlootedCount > 0)
+                    loot->unlootedCount--;
+            }
         }
 
         // Collect quest items (only for active quests, limited to needed count)
@@ -220,6 +225,12 @@ bool AOELootServer::CanPacketReceive(WorldSession* session, WorldPacket const& p
 
             questItemsToAdd.push_back(cappedItem);
             loot->quest_items[i].is_looted = true;
+
+            if (loot->quest_items[i].is_counted)
+            {
+                if (loot->unlootedCount > 0)
+                    loot->unlootedCount--;
+            }
         }
 
         // Clear gold
